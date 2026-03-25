@@ -5,7 +5,7 @@
     "moduleResolution": "bundler",
     "lib": ["ES2022"],
     "outDir": "./dist",
-    "rootDir": "./src",
+    "rootDir": "..", //TODO update
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
@@ -14,8 +14,11 @@
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
+    "paths": {
+      "@shared/*": ["../shared/*"] //TODO remove
+    },
     "types": ["node"]
   },
-  "include": ["src/**/*"],
+  "include": ["src/**/*", "../shared"],
   "exclude": ["node_modules", "dist"]
 }
