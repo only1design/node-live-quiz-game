@@ -1,12 +1,11 @@
-import { OutgoingDataMap, OutgoingType } from '@shared/types/ws.js';
 import type WebSocket from 'ws';
 import { UnexpectedError } from '../errors/unexpectedError.js';
-import { IUser } from '../repository/users.js';
+import { OutgoingDataMap, OutgoingType, User } from '../types';
 
-const connectionToUserMap = new Map<WebSocket, IUser>();
-const userToConnectionMap = new Map<IUser, WebSocket>();
+const connectionToUserMap = new Map<WebSocket, User>();
+const userToConnectionMap = new Map<User, WebSocket>();
 
-export const associateUserWithConnection = (ws: WebSocket, user: IUser) => {
+export const associateUserWithConnection = (ws: WebSocket, user: User) => {
   connectionToUserMap.set(ws, user);
   userToConnectionMap.set(user, ws);
 };
@@ -49,7 +48,7 @@ export const getUserByConnection = (ws: WebSocket) => {
   return user;
 };
 
-export const getConnectionByUser = (user: IUser) => {
+export const getConnectionByUser = (user: User) => {
   return userToConnectionMap.get(user);
 };
 

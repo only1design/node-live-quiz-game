@@ -1,5 +1,5 @@
 import type WebSocket from 'ws';
-import { IncomingType } from '@shared/types/ws.js';
+import { IncomingDataMap, IncomingType } from '../types';
 import {
   answerHandler,
   createGameHandle,
@@ -9,6 +9,11 @@ import {
   startGameHandle,
 } from './game.js';
 import { register } from './register.js';
+
+export interface HandlerArgs<T extends IncomingType> {
+  data: IncomingDataMap[T];
+  connection: WebSocket;
+}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type Handler = (args: { connection: WebSocket; data: any }) => void;

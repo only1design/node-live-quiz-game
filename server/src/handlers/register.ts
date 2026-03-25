@@ -1,9 +1,9 @@
-import { IncomingType, OutgoingType } from '@shared/types/ws.js';
 import { usersRepository } from '../repository/users.js';
 import { associateUserWithConnection, send } from '../services/connectionService.js';
-import { IHandlerArgs } from './types.js';
+import { IncomingType, OutgoingType } from '../types';
+import { HandlerArgs } from './index';
 
-export const register = ({ data, connection }: IHandlerArgs<IncomingType.REG>) => {
+export const register = ({ data, connection }: HandlerArgs<IncomingType.REG>) => {
   const { name, password } = data;
 
   const existedUser = usersRepository.getUserByName(name);

@@ -1,9 +1,9 @@
-import { IQuestion } from '@shared/types/game.js';
 import { UnexpectedError } from '../errors/unexpectedError.js';
 import { lastQuestionsSchemaVersion, QuestionsSchemaVersion } from '../services/gameService.js';
+import { Question } from '../types';
 
 export const validateQuestions = (
-  questions: IQuestion[],
+  questions: Question[],
   schemaVersion: QuestionsSchemaVersion = lastQuestionsSchemaVersion
 ) => {
   const validQuestions = questions.filter((question) => {

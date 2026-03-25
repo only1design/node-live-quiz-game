@@ -1,21 +1,18 @@
-import { IGame, IPlayer } from '@shared/types/game.js';
-import { IPlayerResult, OutgoingType } from '@shared/types/ws.js';
-import { UnexpectedError } from '../errors/unexpectedError.js';
-import { IPlayerAnswer, IRound, roundsRepository } from '../repository/round.js';
+import { AnswerData, Game, OutgoingType, Player, PlayerResult, User } from '../types';
 import { broadcast, getConnectionByUser } from './connectionService.js';
 import { getGameParticipantsConnections, iterateGameQuestion } from './gameService.js';
 import { getUserByIndex } from './usersService.js';
 
 const BASE_POINTS = 1000;
 
-export const initRound = (game: IGame) => {
+export const initRound = (game: Game) => {
   const question = game.questions[game.currentQuestion];
 
-  const timer = setTimeout(() => {
+  game.questionTimer = setTimeout(() => {
     iterateGameQuestion(game);
   }, question.timeLimitSec * 1000);
-
-  roundsRepository.createRound(game.id, game.currentQuestion, timer);
+  game.questionStartTime = Date.now();
+  game.playerAnswers = new Map();
 
   const participantsConnections = getGameParticipantsConnections(game);
 
@@ -28,15 +25,13 @@ export const initRound = (game: IGame) => {
   });
 };
 
-export const closeRound = (game: IGame) => {
-  const round = getRoundByGameId(game.id);
-
-  round.timer.close();
+export const closeRound = (game: Game) => {
+  game.questionTimer?.close();
 
   const playerResults = [];
 
   for (const player of game.players) {
-    const playerResult = getPlayerResults(game, round, player);
+    const playerResult = getPlayerResults(game, player);
     player.score = playerResult.totalScore;
     playerResults.push(playerResult);
   }
@@ -44,18 +39,18 @@ export const closeRound = (game: IGame) => {
   const participantsConnections = getGameParticipantsConnections(game);
 
   broadcast(participantsConnections, OutgoingType.QUESTION_RESULT, {
-    questionIndex: round.questionIndex,
-    correctIndex: game.questions[round.questionIndex].correctIndex,
+    questionIndex: game.currentQuestion,
+    correctIndex: game.questions[game.currentQuestion].correctIndex,
     playerResults,
   });
 
-  deleteRoundByGameId(game);
+  deleteRound(game);
 };
 
-export const getPlayerResults = (game: IGame, round: IRound, player: IPlayer): IPlayerResult => {
-  const playerAnswer = round.playerAnswers[player.index];
+export const getPlayerResults = (game: Game, player: Player): PlayerResult => {
+  const playerAnswer = game?.playerAnswers?.get(player.index);
 
-  const playerResult: IPlayerResult = {
+  const playerResult: PlayerResult = {
     name: player.name,
     answered: !!playerAnswer,
     correct: false,
@@ -63,24 +58,24 @@ export const getPlayerResults = (game: IGame, round: IRound, player: IPlayer): I
     totalScore: player.score,
   };
 
-  const question = game.questions[round.questionIndex];
+  const question = game.questions[game.currentQuestion];
 
-  if (!playerResult.answered) {
+  if (!playerResult.answered || playerAnswer === undefined) {
     return playerResult;
   }
 
   const { correctIndex, timeLimitSec } = question;
-  const { optionsIndex: answerIndex, timestamp: answerTimestamp } = playerAnswer;
-  const { startedAt: roundStartedAt } = round;
+  const { answerIndex, timestamp } = playerAnswer;
+  const { questionStartTime } = game;
 
   playerResult.correct = answerIndex === correctIndex;
 
-  if (!playerResult.correct) {
+  if (!playerResult.correct || questionStartTime === undefined) {
     return playerResult;
   }
 
   const timeLimit = timeLimitSec * 1000;
-  const answerTime = answerTimestamp - roundStartedAt;
+  const answerTime = timestamp - questionStartTime;
   const timeRemaining = timeLimit - answerTime;
 
   playerResult.pointsEarned = BASE_POINTS * (timeRemaining / timeLimit);
@@ -89,49 +84,36 @@ export const getPlayerResults = (game: IGame, round: IRound, player: IPlayer): I
   return playerResult;
 };
 
-export const getRoundByGameId = (gameId: IGame['id']) => {
-  const round = roundsRepository.getRoundByGameId(gameId);
+export const isRoundInit = (game: Game) => Boolean(game.questionTimer);
 
-  if (!round) {
-    throw new UnexpectedError('Game round not found');
-  }
-
-  return round;
-};
-
-export const deleteRoundByGameId = (game: IGame) => {
-  const roundDeleted = roundsRepository.deleteRound(game.id);
-
-  if (!roundDeleted) {
-    throw new UnexpectedError('Game round not found');
-  }
+export const deleteRound = (game: Game) => {
+  delete game.questionTimer;
+  delete game.questionStartTime;
+  delete game.playerAnswers;
 };
 
 export const saveQuestionAnswer = (
-  round: IRound,
-  playerIndex: IPlayerAnswer['playerId'],
-  optionsIndex: IPlayerAnswer['optionsIndex']
+  game: Game,
+  playerIndex: User['index'],
+  answerIndex: AnswerData['answerIndex']
 ) => {
-  round.playerAnswers[playerIndex] = {
-    playerId: playerIndex,
-    optionsIndex,
+  game?.playerAnswers?.set(playerIndex, {
+    answerIndex,
     timestamp: Date.now(),
-  };
+  });
 };
 
-export const getPendingPlayers = (game: IGame) => {
-  const round = getRoundByGameId(game.id);
-
+export const getPendingPlayers = (game: Game) => {
   return game.players.filter((player) => {
     const user = getUserByIndex(player.index);
     const connection = getConnectionByUser(user);
-    const answer = round.playerAnswers[player.index];
+    const answer = game?.playerAnswers?.get(player.index);
 
     return !answer && connection;
   });
 };
 
-export const onPendingPlayersChange = (game: IGame) => {
+export const onPendingPlayersChange = (game: Game) => {
   if (!getPendingPlayers(game).length) {
     iterateGameQuestion(game);
   }

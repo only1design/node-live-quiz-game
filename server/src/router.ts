@@ -1,8 +1,8 @@
 import { RawData } from 'ws';
-import { IncomingType, OutgoingType, WsIncomingMessage } from '@shared/types/ws.js';
 import { handlersMap } from './handlers';
 import { WebSocket } from 'ws';
 import { send } from './services/connectionService.js';
+import { IncomingType, OutgoingType, WsIncomingMessage } from './types';
 
 export const route = (connection: WebSocket, data: RawData) => {
   const request = JSON.parse(data.toString()) as WsIncomingMessage<IncomingType>;
@@ -10,7 +10,7 @@ export const route = (connection: WebSocket, data: RawData) => {
 
   if (!handler) {
     send(connection, OutgoingType.ERROR, { error: true, message: 'Unknown request type' });
-    return
+    return;
   }
 
   try {

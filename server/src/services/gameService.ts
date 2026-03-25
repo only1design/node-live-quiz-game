@@ -1,20 +1,23 @@
-import { GameStatus, IGame, IQuestion } from '@shared/types/game.js';
-import { IScore, OutgoingType } from '@shared/types/ws.js';
 import { UnexpectedError } from '../errors/unexpectedError.js';
 import { gamesRepository } from '../repository/games.js';
-import { roundsRepository } from '../repository/round.js';
-import { IUser } from '../repository/users.js';
+import { Game, Question, OutgoingType, Score, User } from '../types';
 import { addDisposableListener, broadcast, getConnectionByUser } from './connectionService.js';
-import { closeRound, getRoundByGameId, initRound, onPendingPlayersChange } from './roundService.js';
+import { closeRound, isRoundInit, initRound, onPendingPlayersChange } from './roundService.js';
 import { getUserByIndex } from './usersService.js';
 
 export enum QuestionsSchemaVersion {
   V1 = 1,
 }
 
+export enum GameStatus {
+  WAITING = 'waiting',
+  IN_PROGRESS = 'in_progress',
+  FINISHED = 'finished',
+}
+
 export const lastQuestionsSchemaVersion = QuestionsSchemaVersion.V1;
 
-export const getGameByCode = (code: IGame['code']) => {
+export const getGameByCode = (code: Game['code']) => {
   const game = gamesRepository.getGameByCode(code);
 
   if (!game) {
@@ -24,7 +27,7 @@ export const getGameByCode = (code: IGame['code']) => {
   return game;
 };
 
-export const getGameById = (id: IGame['id']) => {
+export const getGameById = (id: Game['id']) => {
   const game = gamesRepository.getGameById(id);
 
   if (!game) {
@@ -34,11 +37,11 @@ export const getGameById = (id: IGame['id']) => {
   return game;
 };
 
-export const createGame = (hostId: IGame['hostId'], questions: IQuestion[]) => {
-  return gamesRepository.createGame({ questions, hostId });
+export const createGame = (hostId: Game['hostId'], questions: Question[]) => {
+  return gamesRepository.createGame({ questions, hostId: String(hostId) });
 };
 
-export const getLifecycleController = (game: IGame) => {
+export const getLifecycleController = (game: Game) => {
   const lifecycleController = gamesRepository.getLifecycleController(game.id);
 
   if (!lifecycleController) {
@@ -48,8 +51,8 @@ export const getLifecycleController = (game: IGame) => {
   return lifecycleController;
 };
 
-export const joinUserToGame = (user: IUser, game: IGame) => {
-  game.players.push({ name: user.name, index: user.index, score: 0 });
+export const joinUserToGame = (user: User, game: Game) => {
+  game.players.push({ name: user.name, index: String(user.index), score: 0 });
 
   const playersConnections = getGamePlayersConnections(game);
 
@@ -61,34 +64,34 @@ export const joinUserToGame = (user: IUser, game: IGame) => {
   });
 };
 
-export const onPlayerListChange = (game: IGame) => {
+export const onPlayerListChange = (game: Game) => {
   const participantsConnections = getGameParticipantsConnections(game);
 
   broadcast(participantsConnections, OutgoingType.UPDATE_PLAYERS, game.players);
 };
 
-export const getGamePlayersConnections = (game: IGame) => {
+export const getGamePlayersConnections = (game: Game) => {
   return game.players
     .map((player) => getConnectionByUser(getUserByIndex(player.index)))
     .filter((ws) => ws !== undefined);
 };
 
-export const getGameHostConnection = (game: IGame) => {
+export const getGameHostConnection = (game: Game) => {
   return getConnectionByUser(getUserByIndex(game.hostId));
 };
 
-export const getGameParticipantsConnections = (game: IGame) => {
+export const getGameParticipantsConnections = (game: Game) => {
   const players = getGamePlayersConnections(game);
   const host = getGameHostConnection(game);
 
   return [...players, host].filter((ws) => ws !== undefined);
 };
 
-export const importQuestions = (game: IGame, questions: IQuestion[]) => {
+export const importQuestions = (game: Game, questions: Question[]) => {
   game.questions = questions;
 };
 
-export const startGame = (game: IGame) => {
+export const startGame = (game: Game) => {
   game.status = GameStatus.IN_PROGRESS;
 
   const controller = getLifecycleController(game);
@@ -101,12 +104,12 @@ export const startGame = (game: IGame) => {
   iterateGameQuestion(game);
 };
 
-export const iterateGameQuestion = (game: IGame) => {
+export const iterateGameQuestion = (game: Game) => {
   if (game.status !== GameStatus.IN_PROGRESS) {
     throw new UnexpectedError('Game is not in progress.');
   }
 
-  if (roundsRepository.getRoundByGameId(game.id)) {
+  if (isRoundInit(game)) {
     closeRound(game);
   }
 
@@ -119,12 +122,12 @@ export const iterateGameQuestion = (game: IGame) => {
   initRound(game);
 };
 
-export const finishGame = (game: IGame) => {
+export const finishGame = (game: Game) => {
   game.status = GameStatus.FINISHED;
 
-  const scoreboard: IScore[] = [...game.players]
+  const scoreboard: Score[] = [...game.players]
     .sort((playerA, playerB) => playerB.score - playerA.score)
-    .reduce<IScore[]>((acc, cur, index) => {
+    .reduce<Score[]>((acc, cur, index) => {
       const prevScore = index > 0 ? acc[index - 1].score : 0;
       const prevRank = index > 0 ? acc[index - 1].rank : 0;
 
@@ -153,8 +156,8 @@ export const finishGame = (game: IGame) => {
   gamesRepository.deleteLifecycleController(game.id);
 };
 
-export const terminateGame = (game: IGame) => {
-  if (getRoundByGameId(game.id)) {
+export const terminateGame = (game: Game) => {
+  if (isRoundInit(game)) {
     closeRound(game);
   }
   finishGame(game);

@@ -1,4 +1,3 @@
-import { IncomingType, OutgoingType } from '@shared/types/ws.js';
 import {
   requireCurrentQuestion,
   requireHost,
@@ -23,15 +22,12 @@ import {
   startGame,
   terminateGame,
 } from '../services/gameService.js';
-import {
-  getRoundByGameId,
-  saveQuestionAnswer,
-  onPendingPlayersChange,
-} from '../services/roundService.js';
+import { saveQuestionAnswer, onPendingPlayersChange } from '../services/roundService.js';
+import { IncomingType, OutgoingType } from '../types';
 import { validateQuestions } from '../validation/gameValidation.js';
-import { IHandlerArgs } from './types.js';
+import { HandlerArgs } from './index';
 
-export const createGameHandle = ({ data, connection }: IHandlerArgs<IncomingType.CREATE_GAME>) => {
+export const createGameHandle = ({ data, connection }: HandlerArgs<IncomingType.CREATE_GAME>) => {
   const { questions } = data;
 
   const host = getUserByConnection(connection);
@@ -43,7 +39,7 @@ export const createGameHandle = ({ data, connection }: IHandlerArgs<IncomingType
   send(connection, OutgoingType.GAME_CREATED, { gameId: game.id, code: game.code });
 };
 
-export const joinGame = ({ data, connection }: IHandlerArgs<IncomingType.JOIN_GAME>) => {
+export const joinGame = ({ data, connection }: HandlerArgs<IncomingType.JOIN_GAME>) => {
   const { code } = data;
 
   const game = getGameByCode(code);
@@ -64,7 +60,7 @@ export const joinGame = ({ data, connection }: IHandlerArgs<IncomingType.JOIN_GA
 export const exportQuestions = ({
   data,
   connection,
-}: IHandlerArgs<IncomingType.EXPORT_QUESTIONS>) => {
+}: HandlerArgs<IncomingType.EXPORT_QUESTIONS>) => {
   const { gameId } = data;
 
   const host = getUserByConnection(connection);
@@ -81,7 +77,7 @@ export const exportQuestions = ({
 export const importQuestionsHandler = ({
   data,
   connection,
-}: IHandlerArgs<IncomingType.IMPORT_QUESTIONS>) => {
+}: HandlerArgs<IncomingType.IMPORT_QUESTIONS>) => {
   const { gameId, schemaVersion, questions } = data;
 
   const host = getUserByConnection(connection);
@@ -99,7 +95,7 @@ export const importQuestionsHandler = ({
   });
 };
 
-export const startGameHandle = ({ data, connection }: IHandlerArgs<IncomingType.START_GAME>) => {
+export const startGameHandle = ({ data, connection }: HandlerArgs<IncomingType.START_GAME>) => {
   const { gameId } = data;
 
   const game = getGameById(gameId);
@@ -115,19 +111,18 @@ export const startGameHandle = ({ data, connection }: IHandlerArgs<IncomingType.
   addDisposableListener(connection, 'close', () => terminateGame(game), controller);
 };
 
-export const answerHandler = ({ data, connection }: IHandlerArgs<IncomingType.ANSWER>) => {
+export const answerHandler = ({ data, connection }: HandlerArgs<IncomingType.ANSWER>) => {
   const { questionIndex, answerIndex, gameId } = data;
 
   const player = getUserByConnection(connection);
   const game = getGameById(gameId);
-  const round = getRoundByGameId(gameId);
 
   requireInProgress(game);
   requirePlayer(player, game);
   requireCurrentQuestion(game, questionIndex);
-  requireNotAnswered(player, round);
+  requireNotAnswered(player, game);
 
-  saveQuestionAnswer(round, player.index, answerIndex);
+  saveQuestionAnswer(game, player.index, answerIndex);
 
   send(connection, OutgoingType.ANSWER_ACCEPTED, { questionIndex });
 

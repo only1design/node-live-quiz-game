@@ -1,19 +1,15 @@
-export interface IUser {
-  index: number;
-  name: string;
-  password: string;
-}
+import { User } from '../types';
 
 let userIndex = 0;
-const getUniqueUserIndex = () => userIndex++;
+const getUniqueUserIndex = () => String(userIndex++);
 
-const users: IUser[] = [];
+const users: User[] = [];
 
 export const usersRepository = {
   getUserByName: (name: string) => users.find((user) => user.name === name),
-  getUserByIndex: (index: number) => users.find((user) => user.index === index),
-  createUser: (user: Omit<IUser, 'index'>) => {
-    const newUser: IUser = { ...user, index: getUniqueUserIndex() };
+  getUserByIndex: (index: string) => users.find((user) => user.index === index),
+  createUser: (user: Omit<User, 'index'>) => {
+    const newUser: User = { ...user, index: getUniqueUserIndex() };
     users.push(newUser);
     return newUser;
   },

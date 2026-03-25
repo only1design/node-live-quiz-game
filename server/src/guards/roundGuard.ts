@@ -1,9 +1,8 @@
 import { UnexpectedError } from '../errors/unexpectedError.js';
-import { IRound } from '../repository/round.js';
-import { IUser } from '../repository/users.js';
+import { Game, User } from '../types';
 
-export const requireNotAnswered = (user: IUser, round: IRound) => {
-  if (round.playerAnswers[user.index]) {
+export const requireNotAnswered = (user: User, game: Game) => {
+  if (game?.playerAnswers?.get(user.index)) {
     throw new UnexpectedError('User already answered this question');
   }
 };
