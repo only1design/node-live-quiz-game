@@ -4,12 +4,14 @@ import type { WSMessage } from '../types';
 const RECONNECT_DELAY = 2000;
 const MAX_RECONNECT_ATTEMPTS = 5;
 
-export const useWebSocket = (url: string) => {
+export const useWebSocket = (url: string, onMessage: (message: WSMessage) => void) => {
   const ws = useRef<WebSocket | null>(null);
   const reconnectAttempts = useRef(0);
   const reconnectTimer = useRef<ReturnType<typeof setTimeout>>();
+  const onMessageRef = useRef(onMessage);
   const [isConnected, setIsConnected] = useState(false);
-  const [lastMessage, setLastMessage] = useState<WSMessage | null>(null);
+
+  onMessageRef.current = onMessage;
 
   useEffect(() => {
     let cancelled = false;
@@ -31,7 +33,7 @@ export const useWebSocket = (url: string) => {
         try {
           const message = JSON.parse(event.data) as WSMessage;
           console.log('Received message:', message);
-          setLastMessage(message);
+          onMessageRef.current(message);
         } catch (error) {
           console.error('Failed to parse message:', error);
         }
@@ -82,7 +84,6 @@ export const useWebSocket = (url: string) => {
 
   return {
     isConnected,
-    lastMessage,
     sendMessage,
   };
 };

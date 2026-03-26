@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import { useWebSocket } from './hooks/useWebSocket';
 import { Login } from './components/Login';
 import { RoleSelection } from './components/RoleSelection';
@@ -14,6 +14,7 @@ import type {
   QuestionMessage,
   QuestionResultMessage,
   GameFinishedMessage,
+  WSMessage,
 } from './types';
 
 type Screen =
@@ -29,8 +30,6 @@ type Screen =
 const WS_URL = 'ws://localhost:3000';
 
 function App() {
-  const { isConnected, lastMessage, sendMessage } = useWebSocket(WS_URL);
-
   const [screen, setScreen] = useState<Screen>('login');
   const [playerName, setPlayerName] = useState('');
   const [isHost, setIsHost] = useState(false);
@@ -46,10 +45,8 @@ function App() {
   const [hasAnswered, setHasAnswered] = useState(false);
 
   // Handle WebSocket messages
-  useEffect(() => {
-    if (!lastMessage) return;
-
-    const { type, data } = lastMessage;
+  const handleMessage = useCallback((message: WSMessage) => {
+    const { type, data } = message;
     console.log('Handling message:', type, data);
 
     switch (type) {
@@ -114,7 +111,9 @@ function App() {
       default:
         console.log('Unhandled message type:', type);
     }
-  }, [lastMessage]);
+  }, []);
+
+  const { isConnected, sendMessage } = useWebSocket(WS_URL, handleMessage);
 
   // Handlers
   const handleLogin = (name: string, password: string) => {
