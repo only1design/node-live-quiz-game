@@ -120,13 +120,13 @@ export const startGame = (game: Game) => {
   iterateGameQuestion(game);
 };
 
-export const iterateGameQuestion = (game: Game) => {
+export const iterateGameQuestion = async (game: Game) => {
   if (game.status !== GameStatus.IN_PROGRESS) {
     throw new UnexpectedError('Game is not in progress.');
   }
 
   if (isRoundInit(game)) {
-    closeRound(game);
+    await closeRound(game);
   }
 
   if (game.currentQuestion === game.questions.length - 1) {

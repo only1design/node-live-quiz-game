@@ -24,7 +24,7 @@ export const initRound = (game: Game) => {
   });
 };
 
-export const closeRound = (game: Game) => {
+export const closeRound = async (game: Game) => {
   game.questionTimer?.close();
 
   const playerResults = [];
@@ -44,6 +44,9 @@ export const closeRound = (game: Game) => {
   });
 
   deleteRound(game);
+
+  // Give some time to participants to get acquired with a round result before the next step
+  await new Promise((resolve) => setTimeout(resolve, 7_000));
 };
 
 export const getPlayerResults = (game: Game, player: Player): PlayerResult => {
