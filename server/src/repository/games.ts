@@ -1,13 +1,13 @@
 import { randomUUID } from 'node:crypto';
-import { GameStatus } from '../services/gameService';
-import { Game } from '../types';
+import { Game, GameStatus } from '../types';
 import { generateRoomCode } from '../utils/roomCode.js';
 
 const games: Game[] = [];
 const lifecycleControllers = new Map<string, AbortController>();
 
 export const gamesRepository = {
-  getGameByCode: (code: Game['code']) => games.find((game) => game.code === code),
+  getGameByCode: (code: Game['code']) =>
+    games.find((game) => game.code.toLowerCase() === code.toLowerCase()),
   getGameById: (id: Game['id']) => games.find((game) => game.id === id),
   createGame: (game: Pick<Game, 'questions' | 'hostId'>) => {
     const newGame: Game = {

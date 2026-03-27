@@ -15,7 +15,7 @@ export const validateQuestions = (
       if (
         !Array.isArray(question.options) ||
         question.options.length !== 4 ||
-        !question.options.every((option) => typeof option === 'string')
+        !question.options.every((option) => typeof option === 'string' && option.length > 0)
       ) {
         return false;
       }

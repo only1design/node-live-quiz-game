@@ -1,7 +1,6 @@
 import { AnswerData, Game, OutgoingType, Player, PlayerResult, User } from '../types';
-import { broadcast, getConnectionByUser } from './connectionService.js';
+import { broadcast } from './connectionService.js';
 import { getGameParticipantsConnections, iterateGameQuestion } from './gameService.js';
-import { getUserByIndex } from './usersService.js';
 
 const BASE_POINTS = 1000;
 
@@ -78,7 +77,7 @@ export const getPlayerResults = (game: Game, player: Player): PlayerResult => {
   const answerTime = timestamp - questionStartTime;
   const timeRemaining = timeLimit - answerTime;
 
-  playerResult.pointsEarned = BASE_POINTS * (timeRemaining / timeLimit);
+  playerResult.pointsEarned = Math.ceil(BASE_POINTS * (timeRemaining / timeLimit));
   playerResult.totalScore += playerResult.pointsEarned;
 
   return playerResult;
@@ -105,8 +104,7 @@ export const saveQuestionAnswer = (
 
 export const getPendingPlayers = (game: Game) => {
   return game.players.filter((player) => {
-    const user = getUserByIndex(player.index);
-    const connection = getConnectionByUser(user);
+    const connection = player.ws;
     const answer = game?.playerAnswers?.get(player.index);
 
     return !answer && connection;

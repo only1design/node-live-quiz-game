@@ -18,7 +18,7 @@ import {
   importQuestions,
   joinUserToGame,
   lastQuestionsSchemaVersion,
-  onPlayerListChange,
+  leaveUserFromGame,
   startGame,
   terminateGame,
 } from '../services/gameService.js';
@@ -44,17 +44,16 @@ export const joinGame = ({ data, connection }: HandlerArgs<IncomingType.JOIN_GAM
 
   const game = getGameByCode(code);
   const user = getUserByConnection(connection);
-  const controller = getLifecycleController(game);
 
   requireNotStarted(game);
   requireNotJoined(user, game);
   requireNotHost(user, game);
 
   joinUserToGame(user, game);
-
   send(connection, OutgoingType.GAME_JOINED, { gameId: game.id });
 
-  addDisposableListener(connection, 'close', () => onPlayerListChange(game), controller);
+  const controller = getLifecycleController(game);
+  addDisposableListener(connection, 'close', () => leaveUserFromGame(user, game), controller);
 };
 
 export const exportQuestions = ({
@@ -114,15 +113,15 @@ export const startGameHandle = ({ data, connection }: HandlerArgs<IncomingType.S
 export const answerHandler = ({ data, connection }: HandlerArgs<IncomingType.ANSWER>) => {
   const { questionIndex, answerIndex, gameId } = data;
 
-  const player = getUserByConnection(connection);
+  const user = getUserByConnection(connection);
   const game = getGameById(gameId);
 
   requireInProgress(game);
-  requirePlayer(player, game);
+  requirePlayer(user, game);
   requireCurrentQuestion(game, questionIndex);
-  requireNotAnswered(player, game);
+  requireNotAnswered(user, game);
 
-  saveQuestionAnswer(game, player.index, answerIndex);
+  saveQuestionAnswer(game, user.index, answerIndex);
 
   send(connection, OutgoingType.ANSWER_ACCEPTED, { questionIndex });
 

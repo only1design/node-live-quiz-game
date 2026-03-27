@@ -39,7 +39,7 @@ export interface Game {
   questions: Question[];
   players: Player[];
   currentQuestion: number;
-  status: 'waiting' | 'in_progress' | 'finished';
+  status: GameStatus;
   questionStartTime?: number;
   questionTimer?: NodeJS.Timeout;
   playerAnswers?: Map<string, { answerIndex: number; timestamp: number }>;
@@ -172,4 +172,10 @@ export enum OutgoingType {
   ANSWER_ACCEPTED = 'answer_accepted',
   QUESTION_RESULT = 'question_result',
   GAME_FINISHED = 'game_finished',
+}
+
+export enum GameStatus {
+  WAITING = 'waiting',
+  IN_PROGRESS = 'in_progress',
+  FINISHED = 'finished',
 }

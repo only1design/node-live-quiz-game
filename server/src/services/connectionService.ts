@@ -1,23 +1,7 @@
 import type WebSocket from 'ws';
 import { UnexpectedError } from '../errors/unexpectedError.js';
-import { OutgoingDataMap, OutgoingType, User } from '../types';
-
-const connectionToUserMap = new Map<WebSocket, User>();
-const userToConnectionMap = new Map<User, WebSocket>();
-
-export const associateUserWithConnection = (ws: WebSocket, user: User) => {
-  connectionToUserMap.set(ws, user);
-  userToConnectionMap.set(user, ws);
-};
-
-export const onUserDisconnect = (ws: WebSocket) => {
-  const user = connectionToUserMap.get(ws);
-
-  if (user) {
-    connectionToUserMap.delete(ws);
-    userToConnectionMap.delete(user);
-  }
-};
+import { usersRepository } from '../repository/users';
+import { OutgoingDataMap, OutgoingType } from '../types';
 
 export const attachHeartbeat = (ws: WebSocket) => {
   let isAlive = true;
@@ -39,17 +23,13 @@ export const attachHeartbeat = (ws: WebSocket) => {
 };
 
 export const getUserByConnection = (ws: WebSocket) => {
-  const user = connectionToUserMap.get(ws);
+  const user = usersRepository.getUserByWs(ws);
 
   if (user === undefined) {
     throw new UnexpectedError('User is not logged in');
   }
 
   return user;
-};
-
-export const getConnectionByUser = (user: User) => {
-  return userToConnectionMap.get(user);
 };
 
 export const send = <T extends OutgoingType>(ws: WebSocket, type: T, data: OutgoingDataMap[T]) => {

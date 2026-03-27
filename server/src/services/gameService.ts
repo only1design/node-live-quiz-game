@@ -1,18 +1,18 @@
 import { UnexpectedError } from '../errors/unexpectedError.js';
 import { gamesRepository } from '../repository/games.js';
-import { Game, Question, OutgoingType, Score, User } from '../types';
-import { addDisposableListener, broadcast, getConnectionByUser } from './connectionService.js';
-import { closeRound, isRoundInit, initRound, onPendingPlayersChange } from './roundService.js';
+import { Game, Question, OutgoingType, Score, User, GameStatus } from '../types';
+import { addDisposableListener, broadcast } from './connectionService.js';
+import {
+  closeRound,
+  isRoundInit,
+  initRound,
+  onPendingPlayersChange,
+  getPendingPlayers,
+} from './roundService.js';
 import { getUserByIndex } from './usersService.js';
 
 export enum QuestionsSchemaVersion {
   V1 = 1,
-}
-
-export enum GameStatus {
-  WAITING = 'waiting',
-  IN_PROGRESS = 'in_progress',
-  FINISHED = 'finished',
 }
 
 export const lastQuestionsSchemaVersion = QuestionsSchemaVersion.V1;
@@ -52,7 +52,7 @@ export const getLifecycleController = (game: Game) => {
 };
 
 export const joinUserToGame = (user: User, game: Game) => {
-  game.players.push({ name: user.name, index: String(user.index), score: 0 });
+  game.players.push({ name: user.name, index: user.index, score: 0, ws: user.ws });
 
   const playersConnections = getGamePlayersConnections(game);
 
@@ -64,20 +64,36 @@ export const joinUserToGame = (user: User, game: Game) => {
   });
 };
 
+export const leaveUserFromGame = (user: User, game: Game) => {
+  const playerIndex = game.players.findIndex((player) => player.index === user.index);
+
+  if (game.status === GameStatus.WAITING) {
+    game.players.splice(playerIndex, 1);
+  } else {
+    delete game.players[playerIndex].ws;
+  }
+
+  onPlayerListChange(game);
+};
+
 export const onPlayerListChange = (game: Game) => {
   const participantsConnections = getGameParticipantsConnections(game);
 
-  broadcast(participantsConnections, OutgoingType.UPDATE_PLAYERS, game.players);
+  const pendingPlayer = getPendingPlayers(game);
+
+  broadcast(
+    participantsConnections,
+    OutgoingType.UPDATE_PLAYERS,
+    pendingPlayer.map((player) => ({ name: player.name, score: player.score, index: player.index }))
+  );
 };
 
 export const getGamePlayersConnections = (game: Game) => {
-  return game.players
-    .map((player) => getConnectionByUser(getUserByIndex(player.index)))
-    .filter((ws) => ws !== undefined);
+  return game.players.map((player) => player.ws).filter((ws) => ws !== undefined);
 };
 
 export const getGameHostConnection = (game: Game) => {
-  return getConnectionByUser(getUserByIndex(game.hostId));
+  return getUserByIndex(game.hostId).ws;
 };
 
 export const getGameParticipantsConnections = (game: Game) => {
@@ -132,7 +148,7 @@ export const finishGame = (game: Game) => {
       const prevRank = index > 0 ? acc[index - 1].rank : 0;
 
       // Use the same rank for users with the same score
-      const rank = cur.score === prevScore ? prevRank : prevRank + 1;
+      const rank = Math.max(cur.score === prevScore ? prevRank : prevRank + 1, 1);
 
       const score = {
         name: cur.name,

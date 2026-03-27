@@ -1,6 +1,5 @@
 import { UnexpectedError } from '../errors/unexpectedError.js';
-import { GameStatus } from '../services/gameService';
-import { Game, User } from '../types';
+import { Game, GameStatus, User } from '../types';
 
 export const requireHost = (user: User, game: Game) => {
   if (user.index !== game.hostId) {

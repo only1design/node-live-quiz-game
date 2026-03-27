@@ -1,6 +1,6 @@
 import { WebSocketServer } from 'ws';
-import { route } from "./router";
-import { attachHeartbeat, onUserDisconnect } from "./services/connectionService";
+import { route } from './router';
+import { attachHeartbeat } from './services/connectionService';
 
 const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
 
@@ -8,6 +8,7 @@ const wss = new WebSocketServer({ port: PORT });
 
 wss.on('connection', (ws) => {
   console.log('Client connected');
+
   attachHeartbeat(ws);
 
   ws.on('message', (data) => {
@@ -16,7 +17,6 @@ wss.on('connection', (ws) => {
 
   ws.on('close', () => {
     console.log('Client disconnected');
-    onUserDisconnect(ws);
   });
 });
 
